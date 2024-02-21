@@ -16,12 +16,10 @@
   folds = NULL,
   quiet = TRUE,
   nfolds = 5L,
-  nfolds_internal = 5L,
-  nsplits_internal = 1L,
+  nfolds_internal = nfolds - 1L,
   lambdas = "auto",
+  admm = T,
   seed = 1L,
-  distrib_estimator = "grenander",
-  lp_solver = "lpsymphony",
   adjustment_type = "BH",
   null_proportion = FALSE,
   null_proportion_level = 0.5,
@@ -60,20 +58,11 @@ numerical covariates.}
 \item{nfolds_internal}{Within each fold, a second  (nested) layer of cross-validation can be conducted to choose a good
 regularization parameter. This parameter controls the number of nested folds.}
 
-\item{nsplits_internal}{Integer, how many times to repeat the nfolds_internal splitting. Can lead to better regularization
-parameter selection but makes ihw a lot slower.}
-
 \item{lambdas}{Numeric vector which defines the grid of possible regularization parameters.
 Use "auto" for automatic selection.}
 
-\item{seed}{Integer or NULL. Split of hypotheses into folds is done randomly. To have the output of the function be reproducible, 
+\item{seed}{Integer or NULL. Split of hypotheses into folds is done randomly. To have the output of the function be reproducible,
 the seed of the random number generator is set to this value at the start of the function. Use NULL if you don't want to set the seed.}
-
-\item{distrib_estimator}{Character ("grenander" or "ECDF"). Only use this if you know what you are doing. ECDF with nfolds > 1
-or lp_solver == "lpsymphony" will in general be excessively slow, except for very small problems.}
-
-\item{lp_solver}{Character ("lpsymphony" or "gurobi"). Internally, IHW solves a sequence of linear programs, which
-can be solved with either of these solvers.}
 
 \item{adjustment_type}{Character ("BH" or "bonferroni") depending on whether you want to control FDR or FWER.}
 

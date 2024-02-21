@@ -1,3 +1,5 @@
+library(IHW)
+library(testthat)
 wasserman_normal_sim <- function(m, pi0, xi_min, xi_max, seed=NULL){
   if (!is.null(seed)) set.seed(seed)
 
@@ -12,8 +14,13 @@ wasserman_normal_sim <- function(m, pi0, xi_min, xi_max, seed=NULL){
 sim <- wasserman_normal_sim(10000,0.85, 0, 3, seed=1)
 sim$group <- as.factor(IHW:::groups_by_filter(sim$filterstat, 10))
 
-ihw_res1 <- ihw(sim$pvalue, sim$filterstat, .1, nbins=10)
+#Error in adjustment_type(object) : could not find function "adjustment_type"
+ihw_res1 <- IHW:::ihw(sim$pvalue, sim$filterstat, .1, nbins=10, adjustment_type = "BH")
 
+#expect: True actual: False
+#seems that >= is the correct formula
+#what is weights function here
+#no longer make sense
 expect_true(all(apply(weights(ihw_res1, levels_only=T),2, IHW:::total_variation) <= ihw_res1@regularization_term + 10^(-12)))
 
 
@@ -27,9 +34,10 @@ expect_equal(rejections(ihw_res1), rejections(ihw_res1_formula2))
 
 # try same simulation with other value of alpha
 ihw_res1_lower_alpha <- ihw(sim$pvalue, sim$filterstat, .01, nbins=10)
-testthat::expect_less_than( rejections(ihw_res1_lower_alpha), rejections(ihw_res1))
+testthat::expect_lt( rejections(ihw_res1_lower_alpha), rejections(ihw_res1))
 
 # try with only 1 fold
+#error: m_groups_other_folds_uncollapsed not found
 expect_message(ihw_res1_single_fold <- ihw(sim$pvalue, sim$filterstat, .1, nbins=10, nfolds=1))
 
 ihw_res2 <- ihw(sim$pvalue, sim$group, .1)
@@ -42,6 +50,8 @@ plot(ihw_res2)
 
 ihw_res3 <- ihw(sim$pvalue, sim$group, .1, covariate_type="nominal")
 
+#expect true: actual: False
+#seems that >= is the correct formula
 expect_true(all(apply(weights(ihw_res3, levels_only=T),2, IHW:::uniform_deviation) <= ihw_res3@regularization_term + 10^(-12)))
 
 # now test small inputs.
@@ -64,6 +74,8 @@ expect_equal(nfolds(ihw_res1_single_fold), 1L) # the default choice
 
 n <- nrow(ihw_res1)
 expect_equal(n, 10000)
+
+#Error: object "ihw_res1_single_fold" not found
 expect_equal(nrow(ihw_res1_single_fold), n)
 
 # methods which return vector equal to number of hypotheses
@@ -106,14 +118,6 @@ expect_true(is.data.frame(as.data.frame(ihw_res1)))
 # quick test for show method
 expect_equal(capture.output(ihw_res1), capture.output(ihw_res2))
 
-# now let's also test if ECDF method runs
-sim3 <- wasserman_normal_sim(2000,0.85, 0, 3, seed=1)
-ihw_naive <- ihw(sim3$pvalue, sim3$filterstat, .1, nfolds=1L, nbins=3L, lambdas=Inf, distrib_estimator="ECDF")
-# should have increased rejections compared to BH
-# also opportunity to test get_bh_threshold
-expect_less_than( sum(sim3$pvalue <= get_bh_threshold(sim3$pvalue, .1)), rejections(ihw_naive))
-
-
 
 
 #--------- Filtered method ------------------------------------------#
@@ -122,7 +126,7 @@ expect_less_than( sum(sim3$pvalue <= get_bh_threshold(sim3$pvalue, .1)), rejecti
 
 mgroups <- table(sim$group)
 sim_filt <- subset(sim, sim$pvalue <= 0.5)
-ihw_res1_filtered_single_fold <- ihw(sim_filt$pvalue, sim_filt$group,.1, 
+ihw_res1_filtered_single_fold <- ihw(sim_filt$pvalue, sim_filt$group,.1,
                                      nfolds=1, m_groups=mgroups)
 
 expect_equal(rejections(ihw_res1_single_fold), rejections(ihw_res1_filtered_single_fold))

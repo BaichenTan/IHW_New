@@ -1,0 +1,98 @@
+Some questions that I have encountered:
+
+1. cannot load the C++ codes by Rcpp package
+
+A) I have run IHW:::optimal_ts to testify that the results are the same as the gren_objects dataset
+
+B) For lambda = Inf case:
+I have use the tg == tg-1 as the new constraint and this aligns with the output given by the ADMM algorithm
+
+When I set lambda = 1e10, the results by the two methods are the same, but when I choose an even larger lambda, the answer deviate, I think this relates to the way the solver deals with an extremely large penalty term?
+
+C) For test_ihw, failures that I have observed:
+
+1. #Error in adjustment_type(object) : could not find function "adjustment_type"
+
+Status: Solved by loading the ihw_class.R
+
+2. #expect: True actual: False
+#seems that >= is the correct formula
+#what is weights function here
+expect_true(all(apply(weights(ihw_res1, levels_only=T),2, IHW:::total_variation) <= ihw_res1@regularization_term + 10^(-12)))
+
+Goal: maximize \sum Fg(tg) - \lam \sum |tg - tg-1|
+
+Old code: 
+Maximize: \sum Fg(tg)
+FDR <= \alpha
+\sum |wg - wg-1| <= \lam, this is equivalent to \sum |tg - tg-1| <= \lam \Sum tg
+
+Check if gurobi results are equal to ADMM
+
+
+3. # try with only 1 fold
+#error: m_groups_other_folds_uncollapsed not found
+expect_message(ihw_res1_single_fold <- ihw(sim$pvalue, sim$filterstat, .1, nbins=10, nfolds=1))
+
+I think the issue may because that  m_groups_other_folds_uncollapsed is not specified as the inputs in the function ihw_internal
+
+4. Read through the ADMM stopping strategies to see if there are other stopping rules
+which heursitics to choose
+
+5. optimal_CVXR and check its computational time with the new ADMM method (can be combined with step 6?)
+
+extract lambda_max first and then apply that to CVXR
+
+before optimal_ts
+
+if ADMM:
+  -optimal_ts
+
+else:
+  -compute lambda_max
+  -then run CVXR
+  
+6. Move to step 3: check actual dataset 
+
+ -computational speed: old with ADMM, CVXR with ADMM
+ 
+
+
+
+
+
+
+
+
+
+
+
+
+Feb 12
+
+Do the third dataset example
+Run through the old simulations (the new methods)
+
+Simulation file (start with that)
+- create a new test file addition to the old one
+- a few simulations 
+- compare the results output by the CVXR and the new method
+- CVXR method may be quite slow (can drop it)
+- compare the old with new
+
+Run the hqtl_example analysis
+Run the vignettes method
+
+- run time of the three methods
+- the new method doesn't degrade things
+- correctness of the algorithm
+
+Fix the math prob 
+
+Stopping rules
+
+Fixing the files ☑️
+
+
+
+

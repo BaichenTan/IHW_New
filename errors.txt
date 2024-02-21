@@ -1,0 +1,13 @@
+For test_ihw, failures that I have observed:
+
+1. # try with only 1 fold
+#error: m_groups_other_folds_uncollapsed not found
+line that produces this error:
+expect_message(ihw_res1_single_fold <- ihw(sim$pvalue, sim$filterstat, .1, nbins=10, nfolds=1))
+
+
+2. #expect: True actual: False
+#seems that >= is the correct formula
+#what is weights function here
+line that produces this error:
+expect_true(all(apply(weights(ihw_res1, levels_only=T),2, IHW:::total_variation) <= ihw_res1@regularization_term + 10^(-12)))

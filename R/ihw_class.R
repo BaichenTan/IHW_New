@@ -40,6 +40,7 @@
 #' @seealso ihw, plot,ihwResult-method
 #' @import methods
 
+#library(CVXR)
 ihwResult <- setClass("ihwResult",
          	      slots = list(
            		     df = "data.frame",

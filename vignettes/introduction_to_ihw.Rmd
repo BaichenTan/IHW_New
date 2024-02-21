@@ -59,19 +59,54 @@ In particular, we have p-values and baseMean (i.e., the mean of normalized count
 First load IHW:
 ```{r loadihw, message = FALSE, warning = FALSE}
 library("IHW")
-ihwRes <- ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1)
+ihwRes_old <- IHWold::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1)
+ihwRes_admm <- ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, admm = T)
+ihwRes_cvxr <- ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, admm = F)
 ```
 
+```{r runtime}
+system.time(ihwRes_admm <- IHW::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, admm = T))[1]
+system.time(ihwRes_old <- IHWold::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1))[1]
+```
+
+
 This returns an object of the class `r class(ihwRes)`. We can get, e.g., the total number of rejections.
+```{r plots}
+
+x <- c(1:47)
+for (i in 1:5){
+  y1 <- (ihwRes_admm@weights[, i])
+  y2 <- (ihwRes_cvxr@weights[, i])
+  y3 <- (ihwRes_old@weights[, i])
+  # Plot the first plot
+  plot(x, y1, type = "l", col = "blue", ylim = c(0, max(y1, y2)), xlab = "groups", ylab = "weights")
+  
+  # Add the second and third plot
+  lines(x, y2, type = "l", col = "red")
+  
+  lines(x, y3, type = "l", col = "green")
+  
+  legend("topright", legend = c("New IHW", "CVXR", "Old IHW"),
+       col = c("blue", "red", "green"), lty = 1, cex = 0.8)
+}
+
+
+```
 
 ```{r rejections}
-rejections(ihwRes)
+rejections(ihwRes_admm)
+rejections(ihwRes_old)
+rejections(ihwRes_cvxr)
 ```
 
 And we can also extract the adjusted p-values:
 ```{r headadjp}
-head(adj_pvalues(ihwRes))
-sum(adj_pvalues(ihwRes) <= 0.1, na.rm = TRUE) == rejections(ihwRes)
+head(adj_pvalues(ihwRes_admm))
+head(adj_pvalues(ihwRes_old))
+head(adj_pvalues(ihwRes_cvxr))
+sum(adj_pvalues(ihwRes_admm) <= 0.1, na.rm = TRUE) == rejections(ihwRes_admm)
+sum(adj_pvalues(ihwRes_old) <= 0.1, na.rm = TRUE) == rejections(ihwRes_old)
+sum(adj_pvalues(ihwRes_cvxr) <= 0.1, na.rm = TRUE) == rejections(ihwRes_cvxr)
 ```
 
 We can compare this to the result of applying the method of Benjamini and Hochberg to the p-values only:
@@ -80,16 +115,22 @@ We can compare this to the result of applying the method of Benjamini and Hochbe
 padjBH <- p.adjust(deRes$pvalue, method = "BH")
 sum(padjBH <= 0.1, na.rm = TRUE)
 ```
+
 ```{r compareBH2, echo = FALSE}
-stopifnot( sum(padjBH <= 0.1, na.rm = TRUE) < 0.9 * rejections(ihwRes) )
+stopifnot( sum(padjBH <= 0.1, na.rm = TRUE) < 0.9 * rejections(ihwRes_admm) )
+stopifnot( sum(padjBH <= 0.1, na.rm = TRUE) < 0.9 * rejections(ihwRes_old) )
+stopifnot( sum(padjBH <= 0.1, na.rm = TRUE) < 0.9 * rejections(ihwRes_cvxr) )
 ```
 
 `r Biocpkg("IHW")` produced quite a bit more rejections than that. 
 How did we get this power? Essentially it was possible by assigning appropriate weights to each hypothesis. We can retrieve the weights as follows:
 
 ```{r headweights}
-head(weights(ihwRes))
+head(weights(ihwRes_admm))
+head(weights(ihwRes_old))
+head(weights(ihwRes_cvxr))
 ```
+
 ```{r nbinsnfolds, echo = FALSE}
 ## somehow inlining this code caching does not work when code is 
 nbins_ihwRes <- nbins(ihwRes)
@@ -99,7 +140,9 @@ Internally, what happened was the following: We split the hypotheses into $n$ di
 
 The values of $n$ and $k$ can be accessed through
 ```{r}
-c(nbins(ihwRes), nfolds(ihwRes))
+c(nbins(ihwRes_admm), nfolds(ihwRes_admm))
+c(nbins(ihwRes_old), nfolds(ihwRes_old))
+c(nbins(ihwRes_cvxr), nfolds(ihwRes_cvxr))
 ```
 
 In particular, each hypothesis test gets assigned a weight depending on the combination of its assigned fold and stratum.
@@ -107,21 +150,25 @@ In particular, each hypothesis test gets assigned a weight depending on the comb
 We can also see this internal representation of the weights as a ($n$ X $k$) matrix:
 
 ```{r}
-weights(ihwRes, levels_only = TRUE)
+weights(ihwRes_admm, levels_only = TRUE)
+weights(ihwRes_old, levels_only = TRUE)
+weights(ihwRes_cvxr, levels_only = TRUE)
 ```
 
 ## Diagnostic plots
 ### Estimated weights
 
 ```{r plot_ihwRes_weights, fig.width = 6, fig.height = 3.6, out.width = "600px"}
-plot(ihwRes)
+#plot(ihwRes_old)
 ```
 
 We see that the general trend is driven by the covariate (stratum) and is the same across the different folds. As expected, the weight functions calculated on different random subsets of the data behave similarly. For the data at hand, genes with very low `baseMean` count get assigned a weight of 0, while genes with high baseMean count get prioritized.
 
 ### Decision boundary
 ```{r plot_ihwRes_decisionboundary, fig.width = 6, fig.height = 3.6, out.width = "600px"}
-plot(ihwRes, what = "decisionboundary") 
+#plot(ihwRes_admm, what = "decisionboundary") 
+#plot(ihwRes_old, what = "decisionboundary") 
+#plot(ihwRes_cvxr, what = "decisionboundary") 
 ```
 The plot shows the implied decision boundaries for the unweighted p-values, as a function of the covariate.
 
@@ -129,16 +176,29 @@ The plot shows the implied decision boundaries for the unweighted p-values, as a
 
 ```{r plot_ihwRes_rawvsadj, fig.width = 6, fig.height = 3.6, warning = FALSE, out.width = "600px", message = FALSE, warning = FALSE}
 library("ggplot2")
-gg <- ggplot(as.data.frame(ihwRes), aes(x = pvalue, y = adj_pvalue, col = group)) + 
+gg <- ggplot(as.data.frame(ihwRes_admm), aes(x = pvalue, y = adj_pvalue, col = group)) + 
   geom_point(size = 0.25) + scale_colour_hue(l = 70, c = 150, drop = FALSE)
 gg
-gg %+% subset(as.data.frame(ihwRes), adj_pvalue <= 0.2)
+gg %+% subset(as.data.frame(ihwRes_admm), adj_pvalue <= 0.2)
 ```
- 
+
+```{r}
+gg <- ggplot(as.data.frame(ihwRes_old), aes(x = pvalue, y = adj_pvalue, col = group)) + 
+  geom_point(size = 0.25) + scale_colour_hue(l = 70, c = 150, drop = FALSE)
+gg
+gg %+% subset(as.data.frame(ihwRes_old), adj_pvalue <= 0.2)
+```
+```{r}
+gg <- ggplot(as.data.frame(ihwRes_cvxr), aes(x = pvalue, y = adj_pvalue, col = group)) + 
+  geom_point(size = 0.25) + scale_colour_hue(l = 70, c = 150, drop = FALSE)
+gg
+gg %+% subset(as.data.frame(ihwRes_cvxr), adj_pvalue <= 0.2)
+```
+
 The `r class(ihwRes)` object `ihwRes` can be converted to a dataframe that contains the following columns:
 
 ```{r}
-ihwResDf <- as.data.frame(ihwRes)
+ihwResDf <- as.data.frame(ihwRes_admm)
 colnames(ihwResDf)
 ```
 
@@ -146,7 +206,10 @@ colnames(ihwResDf)
 The standard IHW method presented above controls the FDR by using a weighted Benjamini-Hochberg procedure with data-driven weights. The same principle can be applied for FWER control by using a weighted Bonferroni procedure. Everything works exactly as above, just use the argument `adjustment_type`. For example:
 
 ```{r Bonferroni}
-ihwBonferroni <- ihw(pvalue ~ baseMean, data = deRes, alpha = 0.1, adjustment_type = "bonferroni")
+ihwBonferroni_admm <- ihw(pvalue ~ baseMean, data = deRes, alpha = 0.1, adjustment_type = "bonferroni", admm = T)
+ihwBonferroni_old <- IHWold::ihw(pvalue ~ baseMean, data = deRes, alpha = 0.1, adjustment_type = "bonferroni")
+#ihwBonferroni_cvxr <- IHWold::ihw(pvalue ~ baseMean, data = deRes, alpha = 0.1, adjustment_type = "bonferroni", admm = F)
+
 ```
 
 # Other data types, and how to choose the covariate
@@ -306,14 +369,17 @@ m_groups  <- table(sim$group)
 Now we can apply IHW to the data subset that results from only keeping low p-values (`reported` is `TRUE`), with the manually specified `m_groups`.
 
 ```{r ihw2}
-ihwS <- ihw(p ~ group, alpha = 0.1, data = filter(sim, reported), m_groups = m_groups)
-ihwS
+ihwS_old <- IHWold:::ihw(p ~ group, alpha = 0.1, data = filter(sim, reported), m_groups = m_groups)
+ihwS_admm <- IHW:::ihw(p ~ group, alpha = 0.1, data = filter(sim, reported), m_groups = m_groups, admm = T)
+ihwS_old
+ihwS_admm
 ```
 
 For comparison, let's also call IHW on the full dataset (in a real application, this would normally not be available). 
 
 ```{r ihw12}
-ihwF <- ihw(p ~ group, alpha = 0.1, data = sim)
+ihwF_old <- IHWold:::ihw(p ~ group, alpha = 0.1, data = sim)
+ihwF_admm <- IHW:::ihw(p ~ group, alpha = 0.1, data = sim, admm = T)
 ```
 
 Now we can compare `ihwS` and `ihwF`. This is a little bit more subtle than above for the BH method, because
@@ -325,18 +391,22 @@ Now we can compare `ihwS` and `ihwF`. This is a little bit more subtle than abov
 Modulo these two aspects, the results should be approximately the same, in terms of the weights curves and the final number of rejections.
 
 ```{r compareihw1, fig.width = 8, fig.height = 3, out.width = "700px"}
-gridExtra::grid.arrange( 
-  plot(ihwS), 
-  plot(ihwF), 
-  ncol = 2) 
-c(rejections(ihwS),
-  rejections(ihwF))
+#gridExtra::grid.arrange( 
+#  plot(ihwS_old), 
+#  plot(ihwF_old), 
+#  ncol = 2) 
+c(rejections(ihwS_old),
+  rejections(ihwF_old))
+c(rejections(ihwS_admm),
+  rejections(ihwF_admm))
 ```
 
 We can also plot the weighted, BH-adjusted p-values against each other:
 
 ```{r compareihw2, fig.width = 3, fig.height = 3, out.width = "300px", warning = FALSE}
-qplot(adj_pvalues(ihwF)[sim$reported], adj_pvalues(ihwS), cex = I(0.2), 
+qplot(adj_pvalues(ihwF_old)[sim$reported], adj_pvalues(ihwS_old), cex = I(0.2), 
+      xlim = c(0, 0.1), ylim = c(0, 0.1)) + coord_fixed()
+qplot(adj_pvalues(ihwF_admm)[sim$reported], adj_pvalues(ihwS_admm), cex = I(0.2), 
       xlim = c(0, 0.1), ylim = c(0, 0.1)) + coord_fixed()
 ```
 

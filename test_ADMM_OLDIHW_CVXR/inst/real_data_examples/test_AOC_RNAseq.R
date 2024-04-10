@@ -12,7 +12,7 @@ time_admm <- system.time(ihw_res_admm <- ihw(bottomly$pvalue, bottomly$baseMean,
 time_cvxr <- system.time(ihw_res_cvxr <- ihw(bottomly$pvalue, bottomly$baseMean, 0.1, nbins=13, 
                nfolds_internal=4L, nfolds=5L, admm = F))[1]
 
-time_oldihw <- system.time(ihw_res_old <- IHWold:::ihw(bottomly$pvalue, bottomly$baseMean, 0.1, nbins=13, 
+time_oldihw <- system.time(ihw_res_old <- IHWold:::ihwOld(bottomly$pvalue, bottomly$baseMean, 0.1, nbins=13, 
                                                        nfolds_internal=4L, nsplits_internal=5L))[1]
 
 print(c(time_admm, time_cvxr, time_oldihw))

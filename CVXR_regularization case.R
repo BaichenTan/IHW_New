@@ -70,7 +70,7 @@ for(i in 1: length(gren_objects[["lambdas"]])){
   lambda <- gren_objects[["lambdas"]][i]
 
   #construct the objective function
-  objective <- Maximize( sum(q_g*F_bar) - lambda*p_norm(diff(x = ts), 1) )
+  objective <- Maximize( sum(q_g*F_bar) - lambda*sum(abs(diff(ts))))
   constraints <- list(ts >= 0, ts <= 1, sum(q_g*(ts - alpha*F_bar)) <= 0, F_bar >= 0)
   constraints <- c(constraints, F_bar_constraints)
   

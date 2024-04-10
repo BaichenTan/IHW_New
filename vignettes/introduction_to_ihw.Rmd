@@ -64,8 +64,14 @@ library("gurobi")
 ```
 
 ```{r runtime, warning = F, message = F}
-system.time(ihwRes_admm <- IHW:::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, admm = T))[1]
-system.time(ihwRes_old <- IHWold:::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1))[1]
+system.time(ihwRes_admm <- IHW:::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, admm = T, nbins = 47))[1]
+```
+
+```{r}
+system.time(ihwRes_old <- IHWold:::ihwOld(pvalue ~ baseMean,  data = deRes, alpha = 0.1, nbins = 47))[1]
+```
+
+```{r}
 system.time(ihwRes_cvxr <- IHW:::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, admm = F))[1]
 ```
 

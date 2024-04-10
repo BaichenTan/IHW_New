@@ -1,0 +1,105 @@
+---
+title: "RNA_seq_visualization"
+output: html_document
+date: "2024-03-07"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load in data
+```{r}
+library("IHWpaper")
+library("IHW")
+bottomly <- analyze_dataset("bottomly")
+```
+
+```{r}
+num_bins <- seq(from = 10, to = 50, by = 10)
+N <- length(num_bins)
+```
+
+## Run the three methods
+```{r}
+time.admm <- rep(NA, N)
+time.old <- rep(NA, N)
+time.cvxr <- rep(NA, N)
+
+rej_admm <- rep(NA, N)
+rej_old <- rep(NA, N)
+rej_cvxr <- rep(NA, N)
+```
+
+```{r}
+for(i in 1:N){
+  time.admm[i] <- system.time(ihw_res_admm <- IHW:::ihw(bottomly$pvalue, bottomly$baseMean, 0.1, nbins = num_bins[i], nfolds_internal=4L, nfolds=5L, admm = T))[1]
+  rej_admm[i] <- IHW:::rejections(ihw_res_admm)
+  
+  
+  time.old[i] <- system.time(ihw_res_old <- IHWold:::ihwOld(bottomly$pvalue, bottomly$baseMean, 0.1, nbins = num_bins[i], nfolds_internal=4L, nsplits_internal=5L))[1]
+  rej_old[i] <- IHW:::rejections(ihw_res_old)
+
+  time.cvxr[i] <- system.time(ihw_res_cvxr <- IHW:::ihw(bottomly$pvalue, bottomly$baseMean, 0.1, nbins = num_bins[i], nfolds_internal=4L, nfolds=5L, admm = F))[1]
+  #rej_cvxr[i] <- IHW:::rejections(ihw_res_cvxr)
+  
+  print(paste0("Ending iteration ", i))
+
+}
+```
+
+## Create the plots
+
+```{r}
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_ihw_res_cvxr.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_ihw_res_admm.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_ihw_res_old.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_time_cvxr.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_time_admm.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_time_old.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_rej_admm.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_rej_old.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/CVXR_comparison/RNAseq_rej_cvxr.RData")
+library(tidyverse)
+data <- data.frame(num_bins = num_bins, rejection_cvxr = rej_cvxr[1:5], rejection_admm = rej_admm[1:5], rejection_old = rej_old[1:5], time_admm = time.admm[1:5], time_cvxr = time.cvxr[1:5], time_old = time.old[1:5])
+```
+
+```{r}
+#we first plot runtime versus bins
+# Create the line plot
+p1 <- ggplot(data) +
+  geom_line(aes(x = num_bins, y = log(time_admm), col = "ADMM Method", linetype = "ADMM Method")) +
+  geom_line(aes(x = num_bins, y = log(time_old), col = "Old IHW", linetype = "Old IHW")) +
+  geom_line(aes(x = num_bins, y = log(time_cvxr), col = "CVXR", linetype = "CVXR")) +
+  labs(x = "Number of Bins", y = "Runtime (log sec)") +
+scale_color_manual(values = c("ADMM Method" = "blue", "Old IHW" = "red", "CVXR" = "green"), name = "Methods") +
+  scale_linetype_manual(values = c("ADMM Method" = "solid", "Old IHW" = "solid", "CVXR" = "solid"), name = "Methods")
+```
+
+```{r}
+#we then plot rejections versus bins
+# Create the line plot
+p2 <- ggplot(data) +
+  geom_line(aes(x = num_bins, y = rejection_admm, col = "ADMM Method", linetype = "ADMM Method")) +
+  geom_line(aes(x = num_bins, y = rejection_old, col = "Old IHW",  linetype = "Old IHW")) +
+  geom_line(aes(x = num_bins, y = rejection_cvxr, col = "CVXR", linetype = "CVXR")) +
+  labs(x = "Number of Bins", y = "Number of Rejections") +
+scale_color_manual(values = c("ADMM Method" = "blue", "Old IHW" = "red", "CVXR" = "green"), name = "Methods") +
+  scale_linetype_manual(values = c("ADMM Method" = "solid", "Old IHW" = "solid", "CVXR" = "dashed"), name = "Methods")
+```
+
+```{r}
+p1
+```
+
+```{r}
+p2
+```
+```{r}
+#plot weights: num bins = 50
+IHW:::plot(ihw_res_admm)
+IHW:::plot(ihw_res_old)
+IHW:::plot(ihw_res_cvxr)
+```
+
+

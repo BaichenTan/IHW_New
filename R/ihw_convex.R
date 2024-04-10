@@ -65,8 +65,8 @@ ihw <- function(...)
 #' @export
 #' @aliases ihw
 #'
-#library(CVXR)
-#library(gurobi)
+library(CVXR)
+library(gurobi)
 ihw.default <- function(pvalues,
                         covariates,
                         alpha,
@@ -135,6 +135,7 @@ ihw.default <- function(pvalues,
     if (nbins == "auto") {
       nbins <-
         max(1, min(200, floor(length(pvalues) / 700))) # rule of thumb..
+      print(nbins)
     }
     groups <-
       as.factor(groups_by_filter(covariates, nbins, seed = seed))
@@ -161,7 +162,7 @@ ihw.default <- function(pvalues,
   }
 
   if ((length(lambdas) == 1) & (lambdas[1] == "auto")) {
-    lambdas <- c(Inf, 1.0 / 2 ^ (1:13), 0)
+    lambdas <- c(Inf, 1.0 / 1.2^(1:7), 1/ 2^(2:13), 0)
   }
 
   if (nbins < 1) {
@@ -807,7 +808,7 @@ optimal_cvxr <- function(train_gre, m_groups, alpha, lambdas){
     lambda <- lambdas[i]
     
     #construct the objective function
-    objective <- CVXR::Maximize( sum(q_g*F_bar) - lambda*p_norm(diff(x = ts), 1) )
+    objective <- CVXR::Maximize( sum(q_g*F_bar) - lambda*sum(abs(diff(ts))))
     constraints <- list(ts >= 0, ts <= 1, sum(q_g*(ts - alpha*F_bar)) <= 0, F_bar >= 0)
     constraints <- c(constraints, F_bar_constraints)
     

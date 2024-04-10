@@ -2,7 +2,7 @@
 
 
 library("IHWpaper")
-
+library("BiocParallel")
 
 register(MulticoreParam(workers=5, verbose=TRUE))
 

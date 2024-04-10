@@ -95,4 +95,120 @@ Fixing the files ☑️
 
 
 
+Feb 26
+
+Try different lambdas
+
+Check the stopping criterion (evaluate the objective function, if the weights don't change too much)
+
+If the total variation doesn't change much (stabilize)
+
+ (slow down)
+
+Bin sizes
+
+Making 
+
+Replace 2 by 1.5
+
+Replace 2 by 1.1 works
+
+1.2^7 then replace to 
+
+
+Mar 4
+1. Change the lambdas = c(1.0 / 1.2^(1:7), 1/ 2^(2:13))
+Solve the issues
+Now the three methods return exactly the same number of rejections (vignettes)
+
+2. Method 2 (Hard code the first few lambdas)?
+
+3. Method 3: other stopping rules?
+
+
+Go to the old package and rename the functions
+
+1. Delete the export file
+
+2. Replace ihwResult by ihw_oldResutl
+Rename all the old functions
+
+3. Delete the plot code from the old ihw 
+4. Plot codes work on the new things
+Modify on the new one
+
+4. Go to old package / remove exports and rename things
+
+5. Go to the new package and fix the plot function 
+Number of bins: additive 4, 8, 12, ..., to 64
+
+6. Bin size vs. time
+Rejections vs. time
+
+
+
+Mar 12.
+
+Come up with an cdmm stopping criterion
+
+Compared how the code implements it
+
+Add some more stopping criterion
+(Make this a bit relaxed (not 1e-10 maybe))
+
+
+From 1st to the 3rd more power 
+
+Get rid of the blue vertical line at 0
+
+Real Dataset (look at real dataset to see how they look like)
+
+Stretch out the x-axis (three lines)
+
+Make the plots less tall
+
+Finding lambdamax 
+(Null single threshold)
+Single FDR works for everything
+
+
+Making the lambdas approximately the same
+(Right now the new method has more lambdas)
+
+Specify a pi0 and specify the alternative as sqrt(t)
+
+The local FDR should be like pi0/sqrt(t)
+
+Say the distribution function 
+
+Density is sqrt(x)
+
+(Pi0 + pi1)/ sqrt(t)
+
+
+
+
+
+
+1. Line 585: why repeat this procedure
+2. 609 Use of this
+
+
+if 1e-5, then difference
+If 1e-
+
+
+
+Mar 19
+
+-compile the test file
+-main goal is to check the power doesn't lose much
+
+
+
+Re-adjust the bins
+/1000
+
+
+
 

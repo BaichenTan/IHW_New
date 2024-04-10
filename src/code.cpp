@@ -545,13 +545,15 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
   }
 
   std::vector<double> bs(num_grenanders, single_t);
-  std::vector<double> us(num_grenanders, 0.0);
+  std::vector<double> us(num_grenanders, 0.0); 
+  //ts_unreg is the ts thresholds from the unregularized case
   std::vector<double> ts_unreg = this->unregularized_thresholds_bh(alpha);
   //std::vector<double> ts_unreg(num_grenanders, 0.1);
 
 
   for(int j = 0; j < num_grenanders; ++j){
     ts_array(j, 0) = single_t;
+    // ts_unreg are equivalent to when the lambda = 0
     ts_array(j, lambdas.size()+1) = ts_unreg[j];
   }
 
@@ -562,7 +564,7 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
   std::vector<double> previous_shift_iter_temp(num_grenanders, 10.0);
 
   double tol = alpha * std::pow(10.0, -4.0);  // Set tolerance.
-
+  
   //Here we start the ADMM steps
   for(int i = 0; i < lambdas.size(); ++i) {
     double rho = 100 * lambdas[i];// * 5000;
@@ -575,22 +577,19 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
     //  }
     //}
 
-    for (int k = 0; k < num_grenanders; k++) {
-      rho_prop[k] = rho / this->test_ms[k];
-    }
-
     //std::cout << "lambda: " << rho << std::endl;
-
+    //why repeat this procedure
     for (int k = 0; k < num_grenanders; k++) {
       rho_prop[k] = rho / this->test_ms[k];
     }
 
-    for(int j = 0; j < 500; ++j) { // should replace this with an actual stopping rule
+    for (int j = 0; j < 500; ++j) { // should replace this with an actual stopping rule
 
       if (i > 0){
         // break;
       }
-
+      
+      //finding the mu such that the corresponding rejection threshold t is bounded within FDR
       double zero_val = bisection(min_density, max_density, tol, [this, &bs, &rho_prop, &alpha](double mu) -> double {
         return -(this->lagrange_balance_tilted(mu, bs, rho_prop, alpha, false) - alpha);
       }, true);
@@ -598,17 +597,19 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
       //std::cout << "zero_val " << zero_val << std::endl;
       //std::cout << "FDR " << lagrange_balance_tilted(zero_val, bs, rho_prop, alpha, false) << std::endl;
 
+      //calculate the rejection threshold t for each group? i think
       for (int k = 0; k < num_grenanders; k++) {
         ts_iter[k] = this->grenanders[k]->invert_subgradient_tilted(zero_val, rho_prop[k], bs[k], alpha);
       }
 
       //std::cout << "ts_iter0 " << ts_iter[0] << std::endl;
 
-
+      //What is the use of this?
       for (int k = 0; k < num_grenanders; k++) {
         bs[k] =  ts_iter[k] + us[k];
       }
-
+      
+      //
       classicTautString_TV1(bs.data(), num_grenanders, lambda_by_rho, shift_iter_temp.data());
       for (double &value : shift_iter_temp) {
         if (value < 0.0) {
@@ -622,19 +623,28 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
 
       double diff_sum = 0.0;
       double prev_sum = 0.0;
+      double l2_sum = 0.0;
+      double dualres_sum = 0.0;
+      
+      //diff_sum: abs difference between y and t
+      //prev_sum: l1 norm of t
       for (int k = 0; k < num_grenanders; k++) {
         diff_sum += std::abs(shift_iter_temp[k] - ts_iter[k]);
         prev_sum += std::abs(ts_iter[k]);
+        l2_sum += std::pow(shift_iter_temp[k] - ts_iter[k], 2);
+        dualres_sum += std::pow(rho * (shift_iter_temp[k] - previous_shift_iter_temp[k]), 2);
       }
 
       double relative_change = (prev_sum > 0) ? (diff_sum / prev_sum) : 0;
       
-      // I change the 1e-3 to 1e-10
-      if (relative_change < 1e-10) {
+      // I change the 1e-3 to 1e-4
+      //stopping criterion: relative_change, primal residual, and dual residual within tolerance
+      if (relative_change < 1e-8 && l2_sum < 1e-8 && dualres_sum < 1e-8) {
          break;  // break out of the loop if relative change is below the threshold
       }
 
-
+      //us is  t^j+1 + u^j - y^j+1
+      //bs is the y^j - u^j
       for (int k = 0; k < num_grenanders; k++) {
         us[k] = ts_iter[k] + us[k] - shift_iter_temp[k];
         bs[k] = shift_iter_temp[k] - us[k];

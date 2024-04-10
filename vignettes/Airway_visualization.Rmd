@@ -1,0 +1,96 @@
+---
+title: "Airway_visualization"
+output: html_document
+date: "2024-03-08"
+---
+
+```{r setup, echo = FALSE}
+knitr::opts_chunk$set(tidy = FALSE, warning = FALSE, message = FALSE, cache = TRUE, autodep = TRUE, dev = c("png", "pdf"), dpi = 360)
+```
+
+```{r loadlibs, message = FALSE, warning = FALSE}
+library("DESeq2")
+library("dplyr")
+data("airway", package = "airway")
+dds <- DESeqDataSet(se = airway, design = ~ cell + dex) %>% DESeq
+deRes <- as.data.frame(results(dds))
+```
+
+## Run the three methods
+```{r}
+num_bins <- seq(from = 10, to = 50, by = 10)
+N <- length(num_bins)
+```
+
+```{r}
+time.admm <- rep(NA, N)
+time.old <- rep(NA, N)
+time.cvxr <- rep(NA, N)
+
+rej_admm <- rep(NA, N)
+rej_old <- rep(NA, N)
+rej_cvxr <- rep(NA, N)
+
+for(i in 1:N){
+  time.admm[i] <- system.time(ihw_res_admm <- IHW:::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, nbins = num_bins[i], admm = T))[1]
+  rej_admm[i] <- IHW:::rejections(ihw_res_admm)
+  
+  
+  time.old[i] <- system.time(ihw_res_old <- IHWold:::ihwOld(pvalue ~ baseMean,  data = deRes, alpha = 0.1, nbins = num_bins[i]))[1]
+  rej_old[i] <- IHW:::rejections(ihw_res_old)
+
+  time.cvxr[i] <- system.time(ihw_res_cvxr <- IHW:::ihw(pvalue ~ baseMean,  data = deRes, alpha = 0.1, nbins = num_bins[i], admm = F))[1]
+  rej_cvxr[i] <- IHW:::rejections(ihw_res_cvxr)
+  
+  print(paste0("Ending iteration ", i))
+
+}
+```
+
+## plot the figures
+
+```{r}
+library(tidyverse)
+data <- data.frame(num_bins = num_bins, rejection_old = rej_old[1:15], rejection_admm = rej_admm[1:15], time_admm = time.admm[1:15], time_old = time.old[1:15])
+```
+
+```{r}
+#we first plot runtime versus bins
+# Create the line plot
+p1 <- ggplot(data) +
+  geom_line(aes(x = num_bins, y = time_admm, col = "ADMM Method")) +
+  geom_line(aes(x = num_bins, y = time_old, col = "Old IHW")) +
+  labs(x = "Number of Bins", y = "Runtime (sec)") +
+scale_color_manual(values = c("ADMM Method" = "blue", "Old IHW" = "red"), name = "Lines")
+```
+
+```{r}
+#we first plot rejections versus bins
+# Create the line plot
+p2 <- ggplot(data) +
+  geom_line(aes(x = num_bins, y = rejection_admm, col = "ADMM Method")) +
+  geom_line(aes(x = num_bins, y = rejection_old, col = "Old IHW")) +
+  labs(x = "Number of Bins", y = "Number of Rejections") +
+scale_color_manual(values = c("ADMM Method" = "blue", "Old IHW" = "red"), name = "Lines")
+```
+
+```{r}
+p1
+```
+
+```{r}
+p2
+```
+
+```{r}
+#weights versus. stratum
+ihw_res_admm_52 <- IHW:::ihw(proteomics_df$pvalue, proteomics_df$X..peptides, alpha = 0.1, nbins= num_bins[13], nfolds=5L, lambdas=seq(0,3,length=20))
+
+  
+ihw_res_old_52 <- IHWold:::ihwOld(proteomics_df$pvalue, proteomics_df$X..peptides, alpha = 0.1, nbins = num_bins[13], nfolds=5L, lambdas=seq(0,3,length=20))
+```
+
+```{r}
+IHW:::plot(ihw_res_admm_52)
+IHW:::plot(ihw_res_old_52)
+```

@@ -16,17 +16,17 @@ eff_sizes <- seq(1, 2.5, length=20)
 sim_funs <- lapply(eff_sizes, function(x) du_ttest_sim_fun(ms,0.95,x, uninformative_filter=F))
 
 #------------- Methods to be benchmarked ------------------------------------#
-continuous_methods_list <- list(bh,
-                                lsl_gbh,
-                                tst_gbh,
-                                stratified_bh,
-                                clfdr,
-                                IHWpaper:::scott_fdrreg,
-                                ddhf,
-                                ihw_5fold)
+#continuous_methods_list <- list(bh,
+ #                               lsl_gbh,
+  #                              tst_gbh,
+   #                             stratified_bh,
+    #                            clfdr,
+     #                           IHWpaper:::scott_fdrreg,
+      #                          ddhf,
+       #                         ihw_5fold)
 
-#continuous_methods_list <- list(IHWold::ihw,
- #                               IHW::ihw)
+continuous_methods_list <- list(IHWold::ihwOld,
+                                IHW::ihw)
 
 
 fdr_methods <- lapply(continuous_methods_list, continuous_wrap)

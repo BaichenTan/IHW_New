@@ -1,13 +1,13 @@
 #!/usr/bin/env Rscript
 
 library("IHWpaper")
-
+library("BiocParallel")
 
 register(MulticoreParam(workers=5))
 
 #----------------- General benchmark settings -------------------------------#
 alphas <- 0.1
-nreps <- 1000 # number of times each simulation should be repeated (monte carlo replicates)
+nreps <- 1000 # number (1000) of times each simulation should be repeated (monte carlo replicates)
 
 #------------- Simulation function ------------------------------------------#
 ms <- 20000

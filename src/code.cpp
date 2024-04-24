@@ -501,6 +501,7 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
   //defines a double called max_density
   double max_density = 0.0;
 
+  //extract the first density from each g of the G groups of the slopes of grenander estimators
   for(int i = 0; i < num_grenanders; ++i) {
     double first_density = this->grenanders[i]->slope_knots[0];
     if(first_density > max_density) {
@@ -508,7 +509,7 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
     }
   }
 
-  // std::cout << "max_density: " << max_density << std::endl;
+  std::cout << "max_density: " << max_density << std::endl;
   // codes change here, use the new version
   // want to extract lambda_max
   if (max_density < 1/alpha) {
@@ -522,11 +523,15 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
       min_density = last_density;
     }
   }
+  std::cout << "min_density: " << min_density << std::endl;
+  bool isALessThanB = (min_density > 1/alpha);
+  std::cout << "Is min density > 1/alpha? " << std::boolalpha << isALessThanB << std::endl;
   // std::cout << "Just before single T " << std::endl;
-
+  //std::cout <<"Maybe it is single_t_FDR";
   std::pair<double, double> mu_t = this->single_t_FDR(alpha);
   double single_t = mu_t.first;
   double mu_dual = mu_t.second;
+  //std::cout <<"maybe it is zero_val";
 
   // std::cout << "Just after single T " << std::endl;
 
@@ -589,10 +594,14 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
         // break;
       }
       
+      //std::cout << "1"<< std::endl;
       //finding the mu such that the corresponding rejection threshold t is bounded within FDR
       double zero_val = bisection(min_density, max_density, tol, [this, &bs, &rho_prop, &alpha](double mu) -> double {
         return -(this->lagrange_balance_tilted(mu, bs, rho_prop, alpha, false) - alpha);
       }, true);
+      //std::cout << "2"<< std::endl;
+      //std::cout << "zero value is" << zero_val << std::endl;
+      
 
       //std::cout << "zero_val " << zero_val << std::endl;
       //std::cout << "FDR " << lagrange_balance_tilted(zero_val, bs, rho_prop, alpha, false) << std::endl;
@@ -600,6 +609,7 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
       //calculate the rejection threshold t for each group? i think
       for (int k = 0; k < num_grenanders; k++) {
         ts_iter[k] = this->grenanders[k]->invert_subgradient_tilted(zero_val, rho_prop[k], bs[k], alpha);
+        std::cout << "ts value is" << ts_iter[k] << std::endl;
       }
 
       //std::cout << "ts_iter0 " << ts_iter[0] << std::endl;
@@ -637,7 +647,7 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
 
       double relative_change = (prev_sum > 0) ? (diff_sum / prev_sum) : 0;
       
-      // I change the 1e-3 to 1e-4
+      // I change the 1e-3 to 1e-8
       //stopping criterion: relative_change, primal residual, and dual residual within tolerance
       if (relative_change < 1e-8 && l2_sum < 1e-8 && dualres_sum < 1e-8) {
          break;  // break out of the loop if relative change is below the threshold

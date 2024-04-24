@@ -1,0 +1,155 @@
+---
+title: "simulation_test"
+output: html_document
+date: "2024-04-17"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Generate simulation data
+```{r}
+source("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/simulation.R")
+library(IHW)
+library(fdrtool)
+```
+
+```{r, warning = T}
+effect_size <- seq(1, 2.5, length=20)
+m <- 20000
+pi0 <- 0.95
+for(i in 3:100){
+  print(paste0("seed is: ", i))
+  for(j in 1:length(effect_size)){
+    print(paste0("effect size is: ", j))
+    simDf <- du_ttest_sim(m, pi0, effect_size[j], n_samples=10, uninformative_filter=FALSE)
+    ihw_res_admm <- IHW:::ihw(simDf$pvalue, simDf$filterstat, 0.1, nbins = "auto", nfolds_internal=4L, nfolds=5L, admm = T)
+  }
+}
+```
+```{r, warning=TRUE}
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/Debug_DF2.RData")
+
+ihw_res_admm <- ihw(simDf$pvalue, simDf$filterstat, 0.1, nbins = 10, nfolds_internal=4L, nfolds=5L, admm = T)
+IHW:::rejections(ihw_res_admm)
+```
+
+
+```{r}
+#没有错误的df
+#load the dataset
+gren_objects <- readRDS("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/gren_objects.Rds")
+
+#load parameters
+train_gre <- gren_objects[["grenander_list"]]
+lambdas <- c(Inf, 1.0 / 1.2^(1:7), 1/ 2^(2:13), 0)
+m_groups <- gren_objects[["ms"]]
+
+#run optimal_ts
+#time1 <- system.time(results_1 <- IHW:::optimal_ts(train_gre, m_groups, 0.1, lambdas))[1]
+results_1 <- IHW:::optimal_ts(train_gre, m_groups, 0.1, c(1.0 / 1.2^(1:7), 1/ 2^(2:13)))
+```
+
+```{r}
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/gren_debug.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/mgroups_debug.RData")
+#View(grenander_list)
+```
+
+```{r}
+#it seems that the single_t_FDR will return 0 
+IHW:::single_t_FDR(grenander_list, m_groups, 0.1)
+IHW:::single_t_FDR(gren_objects[["grenander_list"]], gren_objects[["ms"]], 0.1)
+```
+
+```{r}
+res <- IHW:::optimal_ts(grenander_list, m_groups, 0.1, c(1.0 / 1.2^(1:7), 1/ 2^(2:13)))
+```
+
+```{r}
+#RNAseq example
+ihw_res_admm <- IHW:::ihw(bottomly$pvalue, bottomly$baseMean, 0.1, nbins = "auto", nfolds_internal=4L, nfolds=5L, admm = T)
+```
+
+```{r}
+#proteomics example
+ihw_res_admm <- IHW:::ihw(proteomics_df$pvalue, proteomics_df$X..peptides, alpha = 0.1, nbins= 20, nfolds=5L, admm = T)
+```
+
+```{r}
+f_list <- vector()
+for (i in 1:10){
+   f_list[i] <- grenander_list[[i]][["fs"]][[1]]
+}
+
+1/f_list
+10 / sum(f_list)
+```
+
+```{r}
+g_list <- gren_objects[["grenander_list"]]
+f_list <- vector()
+for (i in 1:47){
+  f_list[i] <-  g_list[[i]][["fs"]][[1]]
+}
+
+47 / sum(f_list)
+```
+
+```{r}
+#check that the 没错的dataset符合要求
+g_list <- gren_objects[["grenander_list"]]
+F_sum <- 0.0
+t_min <- 1
+for (i in 1:47){
+  F_sum <- F_sum + g_list[[i]][["Fs"]][[2]]
+  first_locs <- g_list[[i]][["locs"]][[2]]
+  if (first_locs <= t_min){
+    t_min <- first_locs
+  }
+}
+
+t_min*47 / F_sum
+(t_min*47 / F_sum) < 0.1
+
+```
+
+
+```{r}
+#now check that the 有错的dataset
+F_sum <- 0.0
+t_min <- 1
+for (i in 1:10){
+  F_sum <- F_sum + grenander_list[[i]][["Fs"]][[2]]
+  first_locs <- grenander_list[[i]][["locs"]][[2]]
+  if (first_locs <= t_min){
+    t_min <- first_locs
+  }
+}
+
+t_min*10 / F_sum
+(t_min*10 / F_sum) <= 0.1
+```
+
+
+```{r}
+#List train_grenander, NumericVector test_ms, double alpha
+t <- IHW:::unregularized_thresholds_bh(grenander_list, m_groups, alpha = 0.1)
+```
+
+```{r}
+ws2 <- IHW:::Rcpp_classicTautString_TV1(ws, 10.0)
+```
+
+```{r}
+ws <- sum(m_groups) * t  / sum(m_groups * t)
+```
+
+## We test the new methods with the old IHW
+```{r}
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/gren_debug.RData")
+load("~/Library/Mobile Documents/com~apple~CloudDocs/Desktop/UchicagoStudy/Nikolaos Research/IHW_New/mgroups_debug.RData")
+#View(grenander_list)
+```
+

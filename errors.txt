@@ -11,3 +11,10 @@ expect_message(ihw_res1_single_fold <- ihw(sim$pvalue, sim$filterstat, .1, nbins
 #what is weights function here
 line that produces this error:
 expect_true(all(apply(weights(ihw_res1, levels_only=T),2, IHW:::total_variation) <= ihw_res1@regularization_term + 10^(-12)))
+
+
+
+
+Apr 10:
+
+Need to extract the grenander estimators to check that 

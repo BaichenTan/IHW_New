@@ -79,6 +79,7 @@ ihw.default <- function(pvalues,
                         nfolds_internal = nfolds - 1L,
                         lambdas = "auto",
                         admm = T,
+                        new_method = F,
                         seed = 1L,
                         adjustment_type = "BH",
                         null_proportion = FALSE,
@@ -135,7 +136,7 @@ ihw.default <- function(pvalues,
     if (nbins == "auto") {
       nbins <-
         max(1, min(200, floor(length(pvalues) / 700))) # rule of thumb..
-      print(nbins)
+      #print(nbins)
     }
     groups <-
       as.factor(groups_by_filter(covariates, nbins, seed = seed))
@@ -257,6 +258,7 @@ ihw.default <- function(pvalues,
       sorted_folds = sorted_folds,
       nfolds = nfolds,
       admm = admm,
+      new_method = new_method,
       nfolds_internal = nfolds_internal,
       seed = NULL,
       adjustment_type = adjustment_type,
@@ -334,6 +336,7 @@ ihw_internal <-
            sorted_folds = NULL,
            nfolds = 10L,
            admm = T,
+           new_method = F,
            nfolds_internal = nfolds,
            adjustment_type = "BH",
            null_proportion = FALSE,
@@ -362,6 +365,7 @@ ihw_internal <-
       sorted_folds <-
         factor(sample(1:nfolds, m, replace = TRUE), levels = 1:nfolds)
     }
+    #print(length(sorted_folds))
 
     sorted_weights <- rep(NA, m)
     fold_lambdas <- rep(NA, nfolds)
@@ -402,6 +406,8 @@ ihw_internal <-
             rowSums(m_groups_other_folds_uncollapsed)
         }
       }
+      #print(length(filtered_split_sorted_pvalues))
+      #print(length(m_groups_holdout_fold))
       ws_mat_list[[i]] <-
         ihw_convex_weights(
           filtered_split_sorted_pvalues,
@@ -410,6 +416,7 @@ ihw_internal <-
           m_groups_other_folds,
           lambdas,
           admm,
+          new_method,
           penalty = penalty,
           adjustment_type = adjustment_type,
           quiet = quiet,
@@ -438,6 +445,7 @@ ihw_internal <-
               sorted_folds = sorted_folds_internal,
               nfolds = nfolds_internal,
               admm = admm,
+              new_method = new_method,
               adjustment_type = adjustment_type,
               ...
             )
@@ -608,6 +616,7 @@ ihw_convex_weights <-
            penalty = "total variation",
            lambdas,
            admm = T,
+           new_method = F,
            adjustment_type = "BH",
            grenander_binsize = 1,
            quiet = quiet) {
@@ -651,6 +660,7 @@ ihw_convex_weights <-
     #lapply grenander...
     if (!quiet)
       message("Applying Grenander estimator within each bin.")
+
     grenander_list <- mapply(
       presorted_grenander,
       split_sorted_pvalues,
@@ -659,6 +669,23 @@ ihw_convex_weights <-
       quiet = quiet,
       SIMPLIFY = FALSE
     )
+    #print(length(grenander_list))
+    #save(grenander_list, file = "gren_debug.RData")
+    #save(m_groups, file = "mgroups_debug.RData")
+    #return("")
+    #F_sum <- 0
+    #t_sum <- 0
+    #for (i in 1:10){
+    #  F_sum <- F_sum + grenander_list[[i]][["Fs"]][[2]]
+    #  t_sum <- t_sum + grenander_list[[i]][["locs"]][[2]]
+    #}
+    
+    #print(t_sum / F_sum)
+    #if(abs(t_sum / F_sum - 0.5433943) < 0.00001){
+    #  print("save this")
+    #  save(grenander_list, file = "gren_debug.RData")
+    #  save(m_groups, file = "mgroups_debug.RData")
+    #}
 
     if (length(lambdas_filt) == 0 && zero_included) {
       ts <-  unregularized_thresholds_bh(grenander_list, m_groups, alpha)
@@ -670,11 +697,15 @@ ihw_convex_weights <-
     } else {
       #I add some debug print lines here
       #print(lambdas_filt)
-      if (admm){
-        ts <-  IHW:::optimal_ts(grenander_list, m_groups, alpha, lambdas_filt)
+      if (new_method){
+        ts <- optimal_ts_new(grenander_list, m_groups, alpha, lambdas_filt)
       }else{
-        #add function cvxr here
-        ts <- optimal_cvxr(grenander_list, m_groups, alpha, lambdas_filt)
+        if (admm){
+          ts <-  IHW:::optimal_ts(grenander_list, m_groups, alpha, lambdas_filt)
+        }else{
+          #add function cvxr here
+          ts <- optimal_cvxr(grenander_list, m_groups, alpha, lambdas_filt)
+        }
       }
       #print(ts)
 
@@ -759,7 +790,7 @@ optimal_cvxr <- function(train_gre, m_groups, alpha, lambdas){
   
   #get lambdas
   mu_t <- IHW:::single_t_FDR(train_gre, m_groups, alpha)
-  max_lambdas <- IHW:::lambdaMax( train_gre, m_groups, alpha, mu_t[["mu_dual"]], mu_t[["t"]])
+  max_lambdas <- IHW:::lambdaMax(train_gre, m_groups, alpha, mu_t[["mu_dual"]], mu_t[["t"]])
   lambdas <- lambdas*max_lambdas
   lambdas <- c(1e10, lambdas, 0)
   
@@ -824,4 +855,28 @@ optimal_cvxr <- function(train_gre, m_groups, alpha, lambdas){
   
   return(results[, c((K+1):(2*K))])
 }
+
+find_lambda_max <- function(grenander_list, m_groups, alpha, t_0){
+  t_inf <- IHW:::Rcpp_classicTautString_TV1(t_0, 1e10)
+  density <- IHW:::GrenMix_pdf(grenander_list, m_groups, t_inf[1])
+  mu_dual <- density / (1 - alpha * density)
+  return(c(t_inf, IHW:::lambdaMax(grenander_list, m_groups, alpha, mu_dual, t_inf[1])))
+}
+
+optimal_ts_new <- function(grenander_list, m_groups, alpha, lambdas){
+  #first obtain the unregularized rejection threholds
+  t_0 <- IHW:::unregularized_thresholds_bh(grenander_list, m_groups, alpha = 0.1)
+  
+  #obtain the maximum lambda and the single t value
+  t_lamda_inf <- find_lambda_max(grenander_list, m_groups, alpha, t_0)
+  t_inf <- t_lamda_inf[1:length(t_lamda_inf)-1]
+  lambda_max <- t_lamda_inf[length(t_lamda_inf)]
+  
+  #obtain the rest of the t values for various lamdbas
+  lambdas <- lambda_max*lambdas
+  t_lam <- lapply(lambdas, function(x) IHW:::Rcpp_classicTautString_TV1(t_0, x))
+  t_lam <- do.call(cbind, t_lam)
+  return(cbind(t_inf, t_lam, t_0))
+}
+
 

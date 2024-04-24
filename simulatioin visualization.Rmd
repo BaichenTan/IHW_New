@@ -1,0 +1,24 @@
+---
+title: "test"
+output: html_document
+date: "2024-04-10"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(tidyverse)
+
+ggplot(eval_table_total, aes(x = eff_size, y = FDR, color = fdr_method)) +
+  geom_line() +
+  scale_color_manual(values = c("red", "blue")) +  # Set the colors for the two categories
+  labs(
+    x = "Effect Size",
+    y = "FDR",
+    color = "FDR methods"
+  )
+```

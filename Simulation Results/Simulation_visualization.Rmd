@@ -1,0 +1,162 @@
+---
+title: "Simulation Visualization"
+output: pdf_document
+date: "2025-09-22"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+library(stringr)
+library(scales)
+library(ggplot2)
+```
+
+## Wassernormal Simulation
+```{r}
+load("~/Desktop/Columbia Stats PhD/Optimization (Nikos)/Optimization_New/Tasks_9_9/Simulation_RData/final_results_sim_1_binning_rep1000_sim_wass.RData")
+```
+
+```{r}
+
+df_plot <- final_output_sim3 %>%
+  mutate(
+    # grab the number after "max:" (e.g., "xi_max:3.3333" -> 3.3333)
+    xi_max = as.numeric(str_match(sim_pars, "max\\s*:?\\s*([0-9.]+)")[, 2])
+  ) %>%
+  filter(!is.na(xi_max)) %>%
+  arrange(xi_max)
+
+df_plot <- df_plot %>%
+  filter(fdr_method %in% c("IHW OLD", "IHW Binning"))
+
+plot_fdr <- ggplot(df_plot, aes(x = xi_max, y = FDR, color = fdr_method, group = fdr_method)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  # plus symbols at FDR +/− SD
+  scale_x_continuous(breaks = sort(unique(df_plot$xi_max)),
+                     labels = number_format(accuracy = 0.01) ) +
+  coord_cartesian(ylim = c(0, 0.1)) +
+  labs(
+    x = expression(xi[max]),
+    y = "FDR",
+    color = "FDR method",
+    title = "FDR vs Effect Sizes"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "right") +
+  theme(
+    panel.grid.minor = element_blank(),             # no minor grids anywhere
+    panel.grid.major = element_line(linewidth = 0.3)  # lighter major grids
+    # panel.grid.major.x = element_blank()          # uncomment to remove vertical grids entirely
+  )
+
+plot_fdr
+
+```
+
+```{r}
+plot_power <- ggplot(df_plot, aes(x = xi_max, y = power, color = fdr_method, group = fdr_method)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  # plus symbols at FDR +/− SD
+  scale_x_continuous(breaks = sort(unique(df_plot$xi_max)),
+                     labels = number_format(accuracy = 0.01) ) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    x = expression(xi[max]),
+    y = "FDR",
+    color = "FDR method",
+    title = "Power vs Effect Sizes"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(legend.position = "right") +
+  theme(
+    panel.grid.minor = element_blank(),             # no minor grids anywhere
+    panel.grid.major = element_line(linewidth = 0.3)  # lighter major grids
+    # panel.grid.major.x = element_blank()          # uncomment to remove vertical grids entirely
+  )
+
+plot_power
+```
+
+## TTest Simulation
+```{r}
+load("~/Desktop/Columbia Stats PhD/Optimization (Nikos)/Optimization_New/Tasks_9_9/Simulation_RData/final_results_sim_1_binning_rep1000_sim_ttest_batch_1.RData")
+df1 <- final_output_sim1
+load("~/Desktop/Columbia Stats PhD/Optimization (Nikos)/Optimization_New/Tasks_9_9/Simulation_RData/final_results_sim_1_binning_rep1000_sim_ttest_batch_2.RData")
+df2 <- final_output_sim1
+load("~/Desktop/Columbia Stats PhD/Optimization (Nikos)/Optimization_New/Tasks_9_9/Simulation_RData/final_results_sim_1_binning_rep1000_sim_ttest_batch_3.RData")
+df3 <- final_output_sim1
+
+df <- bind_rows(df1, df2, df3)
+
+df <- df %>%
+  filter(fdr_method %in% c("IHW OLD", "IHW Binning"))
+```
+
+```{r}
+df_plot <- df %>%
+  mutate(
+    effect_size = as.numeric(str_match(sim_pars, "effect size:?([0-9.]+)")[, 2])
+  ) %>%
+  filter(!is.na(effect_size)) %>%
+  arrange(effect_size)
+
+brks <- pretty(range(df_plot$effect_size), n = 10)  # ~10 ticks instead of 20
+
+plot_fdr <- ggplot(df_plot, aes(x = effect_size, y = FDR, color = fdr_method, group = fdr_method)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_x_continuous(
+    breaks = brks,
+    labels = scales::number_format(accuracy = 0.01),
+    minor_breaks = NULL,                            # no minor vertical grids
+    expand = expansion(mult = c(0.02, 0.02))
+  ) +
+  coord_cartesian(ylim = c(0, 0.1)) +
+  labs(x = expression(delta), y = "FDR", color = "FDR method",
+       title = "FDR vs Effect Sizes") +
+  theme_minimal(base_size = 12) +
+  theme(
+    panel.grid.minor = element_blank(),             # no minor grids anywhere
+    panel.grid.major = element_line(linewidth = 0.3)  # lighter major grids
+    # panel.grid.major.x = element_blank()          # uncomment to remove vertical grids entirely
+  )
+
+plot_fdr 
+
+```
+
+```{r}
+# ~8 evenly spaced x ticks instead of every effect size
+brks <- pretty(range(df_plot$effect_size), n = 10)
+
+plot_power <- ggplot(df_plot, aes(x = effect_size, y = power,
+                                  color = fdr_method, group = fdr_method)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 2) +
+  scale_x_continuous(
+    breaks = brks,
+    labels = number_format(accuracy = 0.01),
+    minor_breaks = NULL,                          # remove minor vertical grids
+    expand = expansion(mult = c(0.02, 0.02))      # a bit of end padding (stretches look)
+  ) +
+  coord_cartesian(ylim = c(0, 1)) +
+  labs(
+    x = expression(delta),
+    y = "Power",
+    color = "FDR method",
+    title = "Power vs Effect Sizes"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position = "right",
+    panel.grid.minor = element_blank(),           # no minor grids anywhere
+    panel.grid.major = element_line(linewidth = 0.2)
+    # panel.grid.major.x = element_blank()        # uncomment to remove vertical grids entirely
+  )
+
+plot_power
+
+```

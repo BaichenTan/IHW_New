@@ -42,6 +42,22 @@ The package can be installed as follows with `devtools` from the Github reposito
 devtools::install_github("nignatiadis/IHW")
 ```
 
+The file contains most of the updated files for the IHW Binning Below are the descriptions for each folder:
+
+R -method_new_binning_admm.R: the new method that we are using right now -ihw_convex.R: the first version IHW ADMM method that we desert -plots_new_naive.R: the naive version of the plot function that plots the weights of the IHW Binning method in method_new_binning_admm.R file -plots.R: the old plot function that plot the weights of IHW ADMM -weights.R: contains the weight function that transform the thresholds into weights
+
+Real Dataset Result: this folder contains a rmd file Three_dataset_visualization.Rmd that apply IHW OLD and IHW Binning to three datasets described in the overleaf file
+
+Simulation Results: this folder contains the simulation results described in the overleaf file. All the simulation files should be run on GPU and some of the loading packages and files in the R files might need to change the path to successfully run
+
+-Simulation_ttest.R, Simulation_wass.R, Simulation_null.R: three simulation files that corresponds to the three simulation settings in the overleaf file (see the Simulation section) -Simulation_visualization.Rmd: a Rmarkdown file that plots the power and FDR control results of the two methods IHW OLD and IHW Binning for the three simulation settings (some of the load commands might need to change path in order to run)
+
+-Simulation_nbins_runtime_comparison.R: compares the runtime of the two methods IHW OLD and IHW Binning with varying number of bins -Simulation_nrowx_runtime_comparison.R: compares the runtime of the two methods IHW OLD and IHW Binning with varying number of rows -Simulation_runtime_visualization.Rmd: a Rmarkdown file that plots the run time comparison
+
+IHWpaper-master: contains R codes for IHWpaper
+
+IHWold: contains codes for IHW OLD
+
 
 
 

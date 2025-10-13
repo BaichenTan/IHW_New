@@ -35,7 +35,6 @@ ihw_res1_lower_alpha <- ihw(sim$pvalue, sim$filterstat, .01, nbins=10)
 testthat::expect_lt(rejections(ihw_res1_lower_alpha), rejections(ihw_res1))
 
 # try with only 1 fold
-#error: m_groups_other_folds_uncollapsed not found
 expect_message(ihw_res1_single_fold <- ihw(sim$pvalue, sim$filterstat, .1, nbins=10, nfolds=1))
 
 ihw_res2 <- ihw(sim$pvalue, sim$group, .1)
@@ -81,7 +80,7 @@ lengths <- sapply(mymethods, function(f) length(f(ihw_res1)))
 expect_true(all(lengths == n))
 
 # check if weight budget fullfilled
-expect_equal( sum(weights(ihw_res1)) , nrow(ihw_res1))
+expect_equal(sum(weights(ihw_res1)), nrow(ihw_res1))
 expect_equal( sum(weights(ihw_res1_single_fold)) , nrow(ihw_res1_single_fold))
 
 # check if levels_only works
@@ -123,11 +122,11 @@ sim_filt <- subset(sim, sim$pvalue <= 0.5)
 ihw_res1_filtered_single_fold <- ihw(sim_filt$pvalue, sim_filt$group,.1,
                                      nfolds=1, m_groups=mgroups)
 
-#expect_equal(rejections(ihw_res1_single_fold), rejections(ihw_res1_filtered_single_fold))
+expect_equal(rejections(ihw_res1_single_fold), rejections(ihw_res1_filtered_single_fold))
 
 t1 <-thresholds(ihw_res1_filtered_single_fold, levels_only=T)
 t2 <-thresholds(ihw_res1_single_fold, levels_only=T)
-#expect_equal(t1,t2)
+expect_equal(t1,t2)
 
 #-------------------------------------------------------------------
 #--------- Check if manual definition of folds works ---------------

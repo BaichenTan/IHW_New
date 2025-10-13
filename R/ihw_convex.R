@@ -132,7 +132,7 @@ ihw.default <- function(pvalues,
     
     if (nbins == "auto") {
       nbins <-
-        max(1, floor(length(pvalues) /800)) # rule of thumb..
+        max(1, floor(length(pvalues) /500)) # rule of thumb..
     }
     groups <-
       as.factor(groups_by_filter(covariates, nbins, seed = seed))
@@ -444,15 +444,20 @@ ihw_internal <-
         
         #build, for each lambda, the TRUE counts per new bin by aggregating the
         #original counts of the "other folds"
-        m_groups_regrouped_list <- vector("list", length(lambdas))
+        m_groups_regrouped_list_other <- vector("list", length(lambdas))
+        m_groups_regrouped_list_holdout <- vector("list", length(lambdas))
+        
         for (l in seq_along(lambdas)) {
           map_l <- as.integer(map_new_old_group[, l])   # old_bin_id -> new_bin_id
           # aggregate original counts to regrouped bins
           # (tapply returns a named vector with names = new_bin_id)
+          mg_holdout_new <- tapply(m_groups_holdout_fold, INDEX = map_l, FUN = sum)
           mg_other_new <- tapply(m_groups_other_folds, INDEX = map_l, FUN = sum)
           # be explicit about names so compute_BH_* can align by factor levels
           names(mg_other_new) <- as.character(names(mg_other_new))
-          m_groups_regrouped_list[[l]] <- mg_other_new
+          names(mg_holdout_new) <- as.character(names(mg_holdout_new))
+          m_groups_regrouped_list_holdout[[l]] <- mg_holdout_new
+          m_groups_regrouped_list_other[[l]] <- mg_other_new
         }
         
         # call the helper WITH the regrouped counts
@@ -463,7 +468,8 @@ ihw_internal <-
           alpha = alpha,
           grenander_binsize = 1,
           quiet = TRUE,
-          m_groups_regrouped_list = m_groups_regrouped_list  # <<< pass TRUE counts here
+          m_groups_regrouped_list_holdout <- m_groups_regrouped_list_holdout,
+          m_groups_regrouped_list_other = m_groups_regrouped_list_other  # <<< pass TRUE counts here
         )
         
         ws_mat_list[[i]] <- lapply(thres_weight_res, `[[`, "weights")
@@ -481,7 +487,7 @@ ihw_internal <-
           grenander_binsize = 1,
           quiet = quiet
         )
-        weights <- thresholds_to_weights(as.vector(bh_result$t), m_groups_other_folds_uncollapsed)
+        weights <- thresholds_to_weights(as.vector(bh_result$t), m_groups_holdout_fold)
         ws_mat_list[[i]] <- weights
         
       }
@@ -616,18 +622,9 @@ ihw_internal <-
           group_ids <- map_list_fold_i[group_ids_original]
           
           lambda_weights <- ws_mat_list[[i]][[lambda_idx_per_fold]]
-          # Option A: renormalize using the realized hold-out items
-          # Renormalized the weights
-          idx_hold <- (sorted_folds == fold_i)
-          scale_i <- sum(idx_hold) / sum(lambda_weights[group_ids])
-          lambda_weights_scaled <- scale_i * lambda_weights
+          weight_matrix[, i] <- lambda_weights[map_list_fold_i]
           
-          
-          weight_matrix[, i] <- lambda_weights_scaled[map_list_fold_i]
-          #weight_matrix[, i] <- lambda_weights[map_list_fold_i]
-          
-          sorted_weights[sorted_folds == fold_i] <- lambda_weights_scaled[group_ids]
-          #sorted_weights[sorted_folds == fold_i] <- lambda_weights[group_ids]
+          sorted_weights[sorted_folds == fold_i] <- lambda_weights[group_ids]
           
           new_sorted_groups[[i]] <- group_ids
           
@@ -822,7 +819,8 @@ compute_BH_thresholds_and_weights <- function(
     alpha = 0.1,
     grenander_binsize = 1,
     quiet = TRUE,
-    m_groups_regrouped_list = NULL  # NEW: optional list of vectors with TRUE counts per new bin
+    m_groups_regrouped_list_holdout, #list of vectors with TRUE counts per new bin in the holdout sets
+    m_groups_regrouped_list_other  #list of vectors with TRUE counts per new bin in the other sets
 ) {
   stopifnot(is.numeric(p), is.list(regroup_pvalue_groups))
   stopifnot(length(regroup_pvalue_groups) == length(lambdas))
@@ -837,20 +835,20 @@ compute_BH_thresholds_and_weights <- function(
     lvls    <- levels(g_fac)
     
     # --- crucial: use provided TRUE counts after regrouping, else fall back to observed counts
-    if (!is.null(m_groups_regrouped_list)) {
-      mg_in <- m_groups_regrouped_list[[j]]
-      # allow both named/unnamed input; reorder by current levels
-      if (is.null(names(mg_in))) {
-        # assume bins are 1..K; coerce to character to index by 'lvls'
-        names(mg_in) <- as.character(seq_along(mg_in))
-      }
-      m_groups <- as.integer(mg_in[lvls])
-      if (any(is.na(m_groups))) {
-        stop("m_groups_regrouped_list[[", j, "]] does not match regrouped bin labels.")
-      }
-    } else {
-      m_groups <- vapply(split_p, length, integer(1))
+    mg_in <- m_groups_regrouped_list_other[[j]]
+    mg_in_holdout <- m_groups_regrouped_list_holdout[[j]]
+    # allow both named/unnamed input; reorder by current levels
+    if (is.null(names(mg_in))) {
+      # assume bins are 1..K; coerce to character to index by 'lvls'
+      names(mg_in) <- as.character(seq_along(mg_in))
+      names(mg_in_holdout) <- as.character(seq_along(mg_in_holdout))
     }
+    m_groups <- as.integer(mg_in[lvls])
+    m_groups_holdout <- as.integer(mg_in_holdout[lvls])
+    if (any(is.na(m_groups))) {
+      stop("m_groups_regrouped_list[[", j, "]] does not match regrouped bin labels.")
+    }
+    
     
     # unregularized BH using TRUE counts for these new bins
     #print(m_groups)
@@ -864,11 +862,11 @@ compute_BH_thresholds_and_weights <- function(
     )
     
     # thresholds -> weights (same semantics as IHW)
-    weights <- thresholds_to_weights(as.vector(bh_result$t), m_groups)
+    weights <- IHW:::thresholds_to_weights(as.vector(bh_result$t), m_groups_holdout)
     
     results[[j]] <- list(t = as.vector(bh_result$t),
                          weights = weights,
-                         m_groups = m_groups)
+                         m_groups = m_groups_holdout)
   }
   results
 }

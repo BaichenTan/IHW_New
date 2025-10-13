@@ -1,0 +1,9 @@
+IHW.Rcheck/
+*.tar.gz
+src/*.o
+src/*.so
+libs/
+*.Rproj
+.Rproj.user/
+.DS_Store
+.vscode/

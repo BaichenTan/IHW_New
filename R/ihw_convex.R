@@ -468,7 +468,7 @@ ihw_internal <-
           alpha = alpha,
           grenander_binsize = 1,
           quiet = TRUE,
-          m_groups_regrouped_list_holdout <- m_groups_regrouped_list_holdout,
+          m_groups_regrouped_list_holdout = m_groups_regrouped_list_holdout,
           m_groups_regrouped_list_other = m_groups_regrouped_list_other  # <<< pass TRUE counts here
         )
         

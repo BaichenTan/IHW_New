@@ -270,22 +270,22 @@ ihw.default <- function(pvalues,
   
   # resort back to original form
   weights <-
-    IHW:::fill_nas_reorder(res$sorted_weights, nna, reorder_pvalues)
+    fill_nas_reorder(res$sorted_weights, nna, reorder_pvalues)
   pvalues <-
-    IHW:::fill_nas_reorder(res$sorted_pvalues, nna, reorder_pvalues)
+    fill_nas_reorder(res$sorted_pvalues, nna, reorder_pvalues)
   weighted_pvalues <-
-    IHW:::fill_nas_reorder(res$sorted_weighted_pvalues, nna, reorder_pvalues)
+    fill_nas_reorder(res$sorted_weighted_pvalues, nna, reorder_pvalues)
   adj_pvalues <-
-    IHW:::fill_nas_reorder(res$sorted_adj_p, nna, reorder_pvalues)
+    fill_nas_reorder(res$sorted_adj_p, nna, reorder_pvalues)
   groups     <-
-    factor(IHW:::fill_nas_reorder(res$sorted_groups, nna, reorder_pvalues),
+    factor(fill_nas_reorder(res$sorted_groups, nna, reorder_pvalues),
            levels = group_levels)
   fold_levels <- levels(res$sorted_folds)
   folds      <-
-    factor(IHW:::fill_nas_reorder(res$sorted_folds, nna, reorder_pvalues),
+    factor(fill_nas_reorder(res$sorted_folds, nna, reorder_pvalues),
            levels = fold_levels)
   covariates <-
-    IHW:::fill_nas_reorder(covariates, nna, 1:length(covariates))
+    fill_nas_reorder(covariates, nna, 1:length(covariates))
   
   df <- data.frame(
     pvalue = pvalues,
@@ -365,7 +365,7 @@ ihw_internal <-
     sorted_weights <- rep(NA, m)
     fold_lambdas <- rep(NA, nfolds)
     
-    weight_matrix <- vector("list", nfolds)
+    weight_matrix <- matrix(NA, nlevels(sorted_groups), nfolds)
     
     ws_mat_list <- list()
     rjs_mat_list <- list()
@@ -387,6 +387,7 @@ ihw_internal <-
         
         m_groups_holdout_fold <- m_groups
         m_groups_other_folds <- m_groups
+        m_groups_other_folds_uncollapsed <- m_groups_other_folds
       } else {
         fold_i = levels(sorted_folds)[i]
         filtered_sorted_groups <- sorted_groups[sorted_folds != fold_i]
@@ -480,7 +481,7 @@ ihw_internal <-
           grenander_binsize = 1,
           quiet = quiet
         )
-        weights <- IHW:::thresholds_to_weights(as.vector(bh_result$t), m_groups_other_folds_uncollapsed)
+        weights <- thresholds_to_weights(as.vector(bh_result$t), m_groups_other_folds_uncollapsed)
         ws_mat_list[[i]] <- weights
         
       }
@@ -510,6 +511,10 @@ ihw_internal <-
               # be explicit about names so compute_BH_* can align by factor levels
               names(mg_other_new) <- as.character(names(mg_other_new))
               m_groups_internal  <- mg_other_new
+              
+              if (nfolds_internal == 0){
+                nfolds_internal <- 1
+              }
               
               
               rjs_int <-
@@ -551,7 +556,7 @@ ihw_internal <-
         }
         
         sorted_weighted_pvalues <-
-          IHW:::mydiv(sorted_pvalues, sorted_weights)
+          mydiv(sorted_pvalues, sorted_weights)
         sorted_adj_p <-
           p.adjust(sorted_weighted_pvalues,
                    method = adjustment_type,
@@ -574,7 +579,7 @@ ihw_internal <-
       }
       
       sorted_weighted_pvalues <-
-        IHW:::mydiv(sorted_pvalues, sorted_weights)
+        mydiv(sorted_pvalues, sorted_weights)
       sorted_adj_p <-
         p.adjust(sorted_weighted_pvalues,
                  method = adjustment_type,
@@ -611,7 +616,18 @@ ihw_internal <-
           group_ids <- map_list_fold_i[group_ids_original]
           
           lambda_weights <- ws_mat_list[[i]][[lambda_idx_per_fold]]
-          sorted_weights[sorted_folds == fold_i] <- lambda_weights[group_ids]
+          # Option A: renormalize using the realized hold-out items
+          # Renormalized the weights
+          idx_hold <- (sorted_folds == fold_i)
+          scale_i <- sum(idx_hold) / sum(lambda_weights[group_ids])
+          lambda_weights_scaled <- scale_i * lambda_weights
+          
+          
+          weight_matrix[, i] <- lambda_weights_scaled[map_list_fold_i]
+          #weight_matrix[, i] <- lambda_weights[map_list_fold_i]
+          
+          sorted_weights[sorted_folds == fold_i] <- lambda_weights_scaled[group_ids]
+          #sorted_weights[sorted_folds == fold_i] <- lambda_weights[group_ids]
           
           new_sorted_groups[[i]] <- group_ids
           
@@ -628,7 +644,7 @@ ihw_internal <-
       
 
       sorted_weighted_pvalues <-
-        IHW:::mydiv(sorted_pvalues, sorted_weights)
+        mydiv(sorted_pvalues, sorted_weights)
       sorted_adj_p <-
         p.adjust(sorted_weighted_pvalues,
                  method = adjustment_type,
@@ -662,6 +678,85 @@ ihw_internal <-
     }
     
   }
+
+#' @rdname ihw.default
+#' @param formula \code{\link{formula}}, specified in the form pvalue~covariate (only 1D covariate supported)
+#' @param data data.frame from which the variables in formula should be taken
+#' @export
+ihw.formula <- function(formula, data = parent.frame(), ...) {
+  if (length(formula) != 3) {
+    stop("expecting formula of the form pvalue~covariate")
+  }
+  pv_name <- formula[[2]]
+  cov_name <- formula[[3]]
+  pvalues <- eval(pv_name, data, parent.frame())
+  covariates <- eval(cov_name, data, parent.frame())
+  ihw(pvalues, covariates, ...)
+}
+
+
+#' ihw.DESeqResults: IHW method dispatching on DESeqResults objects
+#'
+#' @param deseq_res "DESeqResults" object
+#' @param filter Vector of length equal to number of rows of deseq_res object. This is used
+#'         for the covariates in the call to ihw. Can also be a character,
+#'         in which case deseq_res[[filter]] is used as the covariate
+#' @param alpha   Numeric, sets the nominal level for FDR control.
+#' @param adjustment_type Character ("BH" or "bonferroni") depending on whether you want to control FDR or FWER.
+#' @param ... Other optional keyword arguments passed to ihw.
+#'
+#' @return A "DESeqResults" object, which includes weights and adjusted p-values returned
+#'         	by IHW. In addition, includes a metadata slot with an "ihwResult" object.
+#' @seealso ihw, ihwResult
+#'
+#' @examples \dontrun{
+#'    library("DESeq2")
+#'    library("airway")
+#'    data("airway")
+#'    dds <- DESeqDataSet(se = airway, design = ~ cell + dex)
+#'    dds <- DESeq(dds)
+#'    deseq_res <- results(dds)
+#'    deseq_res <- ihw(deseq_res, alpha=0.1)
+#'    #equivalent: deseq_res2 <- results(dds, filterFun = ihw)
+#' }
+#'
+#' @export
+#'
+ihw.DESeqResults <- function(deseq_res,
+                             filter = "baseMean",
+                             alpha = 0.1,
+                             adjustment_type = "BH",
+                             ...) {
+  if (missing(filter)) {
+    filter <- deseq_res$baseMean
+  } else if (is.character(filter)) {
+    stopifnot(filter %in% colnames(deseq_res))
+    filter <- deseq_res[[filter]]
+  }
+  
+  stopifnot(length(filter) == nrow(deseq_res))
+  
+  ihw_res <- ihw(deseq_res$pvalue,
+                 filter,
+                 alpha = alpha,
+                 adjustment_type = adjustment_type,
+                 ...)
+  
+  deseq_res$padj <- adj_pvalues(ihw_res)
+  deseq_res$weight <- weights(ihw_res)
+  
+  mcols(deseq_res)$type[names(deseq_res) == "padj"] <- "results"
+  mcols(deseq_res)$description[names(deseq_res) == "padj"] <-
+    paste("Weighted", adjustment_type, "adjusted p-values")
+  
+  mcols(deseq_res)$type[names(deseq_res) == "weight"] <- "results"
+  mcols(deseq_res)$description[names(deseq_res) == "weight"] <-
+    "IHW weights"
+  
+  metadata(deseq_res)[["alpha"]] <- alpha
+  metadata(deseq_res)[["ihwResult"]] <- ihw_res
+  deseq_res
+}
 
 
 iter_fused_regroup_admm <- function(p,                # vector of p‑values
@@ -769,7 +864,7 @@ compute_BH_thresholds_and_weights <- function(
     )
     
     # thresholds -> weights (same semantics as IHW)
-    weights <- IHW:::thresholds_to_weights(as.vector(bh_result$t), m_groups)
+    weights <- thresholds_to_weights(as.vector(bh_result$t), m_groups)
     
     results[[j]] <- list(t = as.vector(bh_result$t),
                          weights = weights,
@@ -822,7 +917,7 @@ unregularized_BH <- function(split_sorted_pvalues,
   )
   
   
-  ts <-  IHW:::unregularized_thresholds_bh(grenander_list, m_groups, alpha)
+  ts <-  unregularized_thresholds_bh(grenander_list, m_groups, alpha)
   ts <- matrix(ts, ncol = 1)
   
   return(list(t = ts))
@@ -877,11 +972,11 @@ ihw_convex_weights_unregularized <-
       SIMPLIFY = FALSE
     )
     
-    ts <-  IHW:::unregularized_thresholds_bh(grenander_list, m_groups, alpha)
+    ts <-  unregularized_thresholds_bh(grenander_list, m_groups, alpha)
     ts <- matrix(ts, ncol = 1)
     
     ws <- apply(ts, 2, function(x)
-      IHW:::thresholds_to_weights(x, m_groups))
+      thresholds_to_weights(x, m_groups))
     
     # return matrix as follows: nbins x nlambdas)
     return(ws)
@@ -957,7 +1052,7 @@ ihw_convex_weights <-
       }
     } else {
       if (admm){
-        ts <-  IHW:::optimal_ts(grenander_list, m_groups, alpha, lambdas_filt)
+        ts <-  optimal_ts(grenander_list, m_groups, alpha, lambdas_filt)
       }else{
         #add function cvxr here
         ts <- optimal_cvxr(grenander_list, m_groups, alpha, lambdas_filt)
@@ -973,7 +1068,7 @@ ihw_convex_weights <-
     }
     
     ws <- apply(ts, 2, function(x)
-      IHW:::thresholds_to_weights(x, m_groups))
+      thresholds_to_weights(x, m_groups))
     
     # return matrix as follows: nbins x nlambdas)
     return(ws)

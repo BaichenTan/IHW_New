@@ -1,0 +1,46 @@
+* installing to library ‘/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library’
+* installing *source* package ‘IHW’ ...
+** using staged installation
+** libs
+clang++ -arch arm64 -std=gnu++14 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppEigen/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c RcppExports.cpp -o RcppExports.o
+clang -arch arm64 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppEigen/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c TVopt_custom.c -o TVopt_custom.o
+clang++ -arch arm64 -std=gnu++14 -I"/Library/Frameworks/R.framework/Resources/include" -DNDEBUG  -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/Rcpp/include' -I'/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/RcppEigen/include' -I/opt/R/arm64/include   -fPIC  -falign-functions=64 -Wall -g -O2  -c code.cpp -o code.o
+code.cpp:246:10: warning: variable 'fa' set but not used [-Wunused-but-set-variable]
+  double fa = fun(a);
+         ^
+code.cpp:245:10: warning: variable 'fb' set but not used [-Wunused-but-set-variable]
+  double fb = fun(b);
+         ^
+code.cpp:391:24: warning: variable 'lambda_opt' is used uninitialized whenever 'for' loop exits because its condition is false [-Wsometimes-uninitialized]
+    for (size_t i = 0; i < all_fs.size(); i++) {
+                       ^~~~~~~~~~~~~~~~~
+code.cpp:399:12: note: uninitialized use occurs here
+    return lambda_opt;
+           ^~~~~~~~~~
+code.cpp:391:24: note: remove the condition if it is always true
+    for (size_t i = 0; i < all_fs.size(); i++) {
+                       ^~~~~~~~~~~~~~~~~
+code.cpp:390:22: note: initialize the variable 'lambda_opt' to silence this warning
+    double lambda_opt;
+                     ^
+                      = 0.0
+code.cpp:615:14: warning: unused variable 'fdr' [-Wunused-variable]
+      double fdr = lagrange_balance_tilted(zero_val, bs, rho_prop, alpha, false);
+             ^
+code.cpp:678:1: warning: non-void function does not return a value [-Wreturn-type]
+}
+^
+5 warnings generated.
+clang++ -arch arm64 -std=gnu++14 -dynamiclib -Wl,-headerpad_max_install_names -undefined dynamic_lookup -single_module -multiply_defined suppress -L/Library/Frameworks/R.framework/Resources/lib -L/opt/R/arm64/lib -o IHW.so RcppExports.o TVopt_custom.o code.o -F/Library/Frameworks/R.framework/.. -framework R -Wl,-framework -Wl,CoreFoundation
+ld: warning: -undefined dynamic_lookup may not work with chained fixups
+installing to /Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/00LOCK-IHW/00new/IHW/libs
+** R
+** byte-compile and prepare package for lazy loading
+Creating a generic function for ‘nrow’ from package ‘base’ in package ‘IHW’
+Error in analyze_dataset("bottomly") : 
+  could not find function "analyze_dataset"
+Error: unable to load R code in package ‘IHW’
+Execution halted
+ERROR: lazy loading failed for package ‘IHW’
+* removing ‘/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/IHW’
+* restoring previous ‘/Library/Frameworks/R.framework/Versions/4.2-arm64/Resources/library/IHW’

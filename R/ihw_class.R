@@ -44,7 +44,7 @@
 ihwResult <- setClass("ihwResult",
          	      slots = list(
            		     df = "data.frame",
-           		     weights = "ANY",
+           		     weights = "matrix",
            		     alpha = "numeric",
                    nbins = "integer",
                    nfolds = "integer",

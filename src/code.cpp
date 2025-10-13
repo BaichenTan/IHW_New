@@ -387,7 +387,7 @@ public:
     
     std::sort(all_fs.rbegin(), all_fs.rend()); // sort in descending order
     
-    double lambda_opt;
+    double lambda_opt = 0.0;
     for (size_t i = 0; i < all_fs.size(); i++) {
       double lambda = all_fs[i];
       std::pair<double, double> balance = lagrange_balance(lambda, alpha, false);
@@ -612,7 +612,6 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
         return -(this->lagrange_balance_tilted(mu, bs, rho_prop, alpha, false) - alpha);
       }, true);
       
-      double fdr = lagrange_balance_tilted(zero_val, bs, rho_prop, alpha, false);
 
       //calculate the rejection threshold t for each groupß
       for (int k = 0; k < num_grenanders; k++) {
@@ -670,11 +669,6 @@ NumericMatrix GrenMix::total_variation_path_ts(double alpha, const NumericVector
   }
   
   return ts_array;
-}
-
-//the new total variation path esimates from smallest lambda to largest lamba
-NumericMatrix GrenMix::total_variation_path_ts_new (double alpha, const NumericVector& lambda_multipliers){
-  
 }
 
 

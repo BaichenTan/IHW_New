@@ -1,0 +1,29 @@
+Package: IHW
+Title: Independent Hypothesis Weighting
+Version: 1.29.1
+Authors@R: c(person("Nikos", "Ignatiadis", email = "nikos.ignatiadis01@gmail.com", role = c("aut", "cre")),
+             person("Wolfgang", "Huber", role = "aut"))
+Description: Independent hypothesis weighting (IHW) is a multiple testing
+    procedure that increases power compared to the method of Benjamini and Hochberg by assigning
+    data-driven weights to each hypothesis. The input to IHW is a two-column
+    table of p-values and covariates. The covariate can be any continuous-valued
+    or categorical variable that is thought to be informative on the statistical
+    properties of each hypothesis test, while it is independent of the p-value under
+    the null hypothesis.
+Depends: R (>= 3.3.0)
+License: Artistic-2.0
+Imports: methods, fdrtool, BiocGenerics, Rcpp, RcppEigen
+Suggests: ggplot2, dplyr, gridExtra, scales, DESeq2, airway, testthat,
+        Matrix, BiocStyle, knitr, rmarkdown, devtools, CVXR, gurobi
+VignetteBuilder: knitr
+biocViews: ImmunoOncology, MultipleComparison, RNASeq
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Encoding: UTF-8
+LinkingTo: Rcpp, RcppEigen
+NeedsCompilation: yes
+Packaged: 2025-10-13 00:22:02 UTC; tanbaichen
+Author: Nikos Ignatiadis [aut, cre],
+  Wolfgang Huber [aut]
+Maintainer: Nikos Ignatiadis <nikos.ignatiadis01@gmail.com>
+Built: R 4.2.2; aarch64-apple-darwin20; 2025-10-13 00:23:58 UTC; unix

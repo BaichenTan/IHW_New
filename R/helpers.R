@@ -70,8 +70,6 @@ get_bh_threshold <- function(pvals, alpha, mtests = length(pvals)){
 }
 
 
-
-
 get_bh_thresholds <- function(unadj_p, filterstat, nbins, alpha){
 	t <- get_bh_threshold(unadj_p, alpha)
 	grps <- groups_by_filter(filterstat, nbins)
